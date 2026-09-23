@@ -44,9 +44,25 @@ account reports plan rate limits. `CC_STATUSLINE_COST=1` forces it, `=0` hides i
 
 ## Install
 
+### Windows (PowerShell)
+
+A native PowerShell version (`statusline.ps1`) is provided for Windows users so it runs without needing Bash or `jq`.
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Y-T-G/statusline/main/install.ps1" -OutFile "$env:TEMP\install.ps1"; & "$env:TEMP\install.ps1"
+```
+
+To install in `full` mode or with `usage-api`:
+
+```powershell
+& "$env:TEMP\install.ps1" -Mode full -UsageApi
+```
+
+### Linux / macOS (Bash)
+
 Needs `bash` and `jq`.
 
-### Claude Code
+#### Claude Code
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Y-T-G/statusline/main/install.sh | bash
@@ -58,7 +74,7 @@ To install in `full` mode or with `usage-api`:
 curl -fsSL https://raw.githubusercontent.com/Y-T-G/statusline/main/install.sh | bash -s -- full usage-api
 ```
 
-### Google Antigravity (`agy`)
+#### Google Antigravity (`agy`)
 
 This status line natively parses the distinct `quota` schema used by `agy`. To install it, point the installer to the Antigravity config directory:
 
@@ -70,8 +86,14 @@ curl -fsSL https://raw.githubusercontent.com/Y-T-G/statusline/main/install.sh | 
 
 ### Uninstallation
 
-The installer downloads `statusline.sh` to your config directory and adds a `statusLine` entry to `settings.json`, keeping a backup at `.bak`. To safely remove it:
+The installer downloads the statusline script to your config directory and adds a `statusLine` entry to `settings.json`, keeping a backup at `.bak`. To safely remove it:
 
+**Windows (PowerShell):**
+```powershell
+& "$env:TEMP\install.ps1" -Uninstall
+```
+
+**Linux/macOS (Bash):**
 ```bash
 # For Claude Code:
 curl -fsSL https://raw.githubusercontent.com/Y-T-G/statusline/main/install.sh | bash -s -- --uninstall
@@ -146,11 +168,19 @@ are skipped, so an API key session (in Claude Code) shows context and cost only.
 ## Adding your own field
 
 If `~/.claude/statusline-extra.sh` (or `$CLAUDE_CONFIG_DIR/statusline-extra.sh`) exists, it is run with the same JSON on stdin and its
-output is appended. Example that adds the git branch:
+output is appended. On Windows, the PowerShell script looks for `statusline-extra.ps1` instead.
 
+Example that adds the git branch:
+
+**Linux / macOS (Bash):**
 ```bash
 #!/usr/bin/env bash
 git branch --show-current 2>/dev/null
+```
+
+**Windows (PowerShell):**
+```powershell
+git branch --show-current 2>$null
 ```
 
 The screenshots above are generated from real output with `assets/render.py`, which needs `cairosvg`.
