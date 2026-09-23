@@ -48,11 +48,19 @@ account reports plan rate limits. `CC_STATUSLINE_COST=1` forces it, `=0` hides i
 
 A native PowerShell version (`statusline.ps1`) is provided for Windows users so it runs without needing Bash or `jq`.
 
+#### Claude Code
+
 ```powershell
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Y-T-G/statusline/main/install.ps1" -OutFile "$env:TEMP\install.ps1"; & "$env:TEMP\install.ps1"
 ```
 
-To install in `full` mode or with `usage-api`:
+#### Google Antigravity (`agy`)
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Y-T-G/statusline/main/install.ps1" -OutFile "$env:TEMP\install.ps1"; $env:CLAUDE_CONFIG_DIR = "$env:USERPROFILE\.gemini\antigravity-cli"; & "$env:TEMP\install.ps1"
+```
+
+To install in `full` mode or with `usage-api`, append the flags to either command above:
 
 ```powershell
 & "$env:TEMP\install.ps1" -Mode full -UsageApi
