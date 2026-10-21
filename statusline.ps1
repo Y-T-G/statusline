@@ -4,8 +4,13 @@ param(
 
 # Read JSON from stdin
 $inputString = $input | Out-String
-if ([string]::IsNullOrWhiteSpace($inputString)) { exit }
-$inputJson = $inputString | ConvertFrom-Json
+if ([string]::IsNullOrWhiteSpace($inputString)) { exit 0 }
+try {
+    $inputJson = $inputString | ConvertFrom-Json
+} catch {
+    exit 0
+}
+if (-not $inputJson) { exit 0 }
 
 # Environment variables
 $modeEnv = [Environment]::GetEnvironmentVariable("CC_STATUSLINE_MODE")
@@ -33,18 +38,27 @@ if (-not $transcriptPath -and $inputJson.session_id) {
 }
 
 if ($transcriptPath -and (Test-Path $transcriptPath)) {
-    # Read last 256KB roughly to avoid reading huge files fully
-    $fs = [System.IO.File]::OpenRead($transcriptPath)
-    $seekPos = [math]::Max(0, $fs.Length - 262144)
-    $fs.Seek($seekPos, [System.IO.SeekOrigin]::Begin) | Out-Null
-    $reader = New-Object System.IO.StreamReader($fs)
-    $content = $reader.ReadToEnd()
-    $reader.Close()
-    
-    $matches = [regex]::Matches($content, '"type":"assistant".*?(?<!"isSidechain":true.*?)"model":"([^"]+)"')
-    if ($matches.Count -gt 0) {
-        $lastModel = $matches[$matches.Count - 1].Groups[1].Value
-    }
+    try {
+        # Open with FileShare.ReadWrite so active transcripts aren't locked out
+        $fs = New-Object System.IO.FileStream($transcriptPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        try {
+            $seekPos = [math]::Max(0, $fs.Length - 262144)
+            $fs.Seek($seekPos, [System.IO.SeekOrigin]::Begin) | Out-Null
+            $reader = New-Object System.IO.StreamReader($fs)
+            try {
+                $content = $reader.ReadToEnd()
+            } finally {
+                $reader.Close()
+            }
+        } finally {
+            $fs.Close()
+        }
+
+        $matches = [regex]::Matches($content, '"type":"assistant".*?(?<!"isSidechain":true.*?)"model":"([^"]+)"')
+        if ($matches.Count -gt 0) {
+            $lastModel = $matches[$matches.Count - 1].Groups[1].Value
+        }
+    } catch {}
 }
 
 # 2. Usage API
@@ -151,10 +165,14 @@ function Format-Clock($s) {
 }
 function Format-Resets($at) {
     if (-not $at) { return "" }
-    $atTime = [DateTime]::Parse($at).ToUniversalTime()
-    $diff = ($atTime - [DateTime]::UtcNow).TotalSeconds
-    if ($diff -le 0) { return "" }
-    return " " + (Get-DimString "($(Format-Clock $diff))")
+    try {
+        $atTime = [DateTime]::Parse($at).ToUniversalTime()
+        $diff = ($atTime - [DateTime]::UtcNow).TotalSeconds
+        if ($diff -le 0) { return "" }
+        return " " + (Get-DimString "($(Format-Clock $diff))")
+    } catch {
+        return ""
+    }
 }
 function Format-Budget($txt, $used, $at) {
     $left = 100 - $used
@@ -206,7 +224,7 @@ if ($ctx) {
 
 if ($rl.five_hour) {
     $parts += Format-Budget "5h" $rl.five_hour.used_percentage $rl.five_hour.resets_at
-} elseif ($quota."gemini-5h" -and $cleanModel.ToLower().Contains("gemini")) {
+} elseif ($quota."gemini-5h" -and $cleanModel -match "gemini") {
     $parts += Format-Budget "5h" ((1 - $quota."gemini-5h".remaining_fraction) * 100) ([DateTime]::UtcNow.AddSeconds($quota."gemini-5h".reset_in_seconds).ToString("o"))
 } elseif ($quota."3p-5h") {
     $parts += Format-Budget "5h" ((1 - $quota."3p-5h".remaining_fraction) * 100) ([DateTime]::UtcNow.AddSeconds($quota."3p-5h".reset_in_seconds).ToString("o"))
@@ -215,7 +233,7 @@ if ($rl.five_hour) {
 if ($Mode -eq "full") {
     if ($rl.seven_day) {
         $parts += Format-Budget "7d" $rl.seven_day.used_percentage $rl.seven_day.resets_at
-    } elseif ($quota."gemini-weekly" -and $cleanModel.ToLower().Contains("gemini")) {
+    } elseif ($quota."gemini-weekly" -and $cleanModel -match "gemini") {
         $parts += Format-Budget "7d" ((1 - $quota."gemini-weekly".remaining_fraction) * 100) ([DateTime]::UtcNow.AddSeconds($quota."gemini-weekly".reset_in_seconds).ToString("o"))
     } elseif ($quota."3p-weekly") {
         $parts += Format-Budget "7d" ((1 - $quota."3p-weekly".remaining_fraction) * 100) ([DateTime]::UtcNow.AddSeconds($quota."3p-weekly".reset_in_seconds).ToString("o"))
