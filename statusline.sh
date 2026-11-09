@@ -201,5 +201,5 @@ printf '%s' "$(jq -r --arg mode "$MODE" --arg cost "$COST" --arg last "$LAST_MOD
 EXTRA="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/statusline-extra.sh"
 if [ -f "$EXTRA" ]; then
   OUT=$(bash "$EXTRA" <<<"$IN" 2>/dev/null)
-  [ -n "$OUT" ] && printf ' %s' "$OUT"
+  [ -z "$OUT" ] || printf ' %s' "$OUT"
 fi
